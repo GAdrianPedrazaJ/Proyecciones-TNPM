@@ -1,0 +1,71 @@
+[debug] [2026-05-06T15:35:47.280Z] ----------------------------------------------------------------------
+[debug] [2026-05-06T15:35:47.294Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Adrian Pedraza\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js init
+[debug] [2026-05-06T15:35:47.294Z] CLI Version:   15.16.0
+[debug] [2026-05-06T15:35:47.295Z] Platform:      win32
+[debug] [2026-05-06T15:35:47.295Z] Node Version:  v24.11.1
+[debug] [2026-05-06T15:35:47.295Z] Time:          Wed May 06 2026 10:35:47 GMT-0500 (hora estándar de Colombia)
+[debug] [2026-05-06T15:35:47.295Z] ----------------------------------------------------------------------
+[debug] 
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  C:\Proyectos\Aplicacion_Proyecciones\Aplicacion_Proyecciones_TNPM
+
+Before we get started, keep in mind:
+
+  * You are currently outside your home directory
+
+[info] 
+=== Project Setup
+[info] 
+[info] First, let's associate this project directory with a Firebase project.
+[info] You can create multiple project aliases by running firebase use --add, 
+[info] 
+[debug] [2026-05-06T15:38:28.836Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-05-06T15:38:28.842Z] > authorizing via signed-in user (sedetandiltandil@gmail.com)
+[debug] [2026-05-06T15:38:28.872Z] Checked if tokens are valid: false, expires at: 1777910371977
+[debug] [2026-05-06T15:38:28.873Z] Checked if tokens are valid: false, expires at: 1777910371977
+[debug] [2026-05-06T15:38:28.874Z] > refreshing access token with scopes: []
+[debug] [2026-05-06T15:38:28.904Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-05-06T15:38:28.904Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-05-06T15:38:29.528Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-05-06T15:38:29.528Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-05-06T15:38:29.551Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects pageSize=100
+[debug] [2026-05-06T15:38:30.313Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects 200
+[debug] [2026-05-06T15:38:30.313Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects [omitted]
+[info] 
+=== Hosting Setup
+[debug] [2026-05-06T15:39:05.528Z] Checked if tokens are valid: true, expires at: 1778085508528
+[debug] [2026-05-06T15:39:05.528Z] Checked if tokens are valid: true, expires at: 1778085508528
+[debug] [2026-05-06T15:39:05.528Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/proyecciones-tnpm [none]
+[debug] [2026-05-06T15:39:06.011Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/proyecciones-tnpm 200
+[debug] [2026-05-06T15:39:06.011Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/proyecciones-tnpm {"projectId":"proyecciones-tnpm","projectNumber":"702085031451","displayName":"Proyecciones-TNPM","name":"projects/proyecciones-tnpm","resources":{"hostingSite":"proyecciones-tnpm"},"state":"ACTIVE","etag":"1_8714f170-4583-4eac-b982-64718165afc9"}
+[info] 
+[info] Your public directory is the folder (relative to your project directory) that
+[info] will contain Hosting assets to be uploaded with firebase deploy. If you
+[info] have a build process for your assets, use your build's output directory.
+[info] 
+[info] 
+[info] i  Didn't detect a .git folder. Assuming C:\Proyectos\Aplicacion_Proyecciones\Aplicacion_Proyecciones_TNPM is the project root. 
+[info] i  Authorizing with GitHub to upload your service account to a GitHub repository's secrets store. 
+[info] 
+[info] Visit this URL on this device to log in:
+[info] https://github.com/login/oauth/authorize?client_id=89cf50f02ac6aaed3484&state=16722031&redirect_uri=http%3A%2F%2Flocalhost%3A9005&scope=read%3Auser%20repo%20public_repo
+[info] 
+[info] Waiting for authentication...
+[debug] [2026-05-06T15:40:09.656Z] >>> [apiv2][query] POST https://github.com/login/oauth/access_token [none]
+[debug] [2026-05-06T15:40:09.660Z] >>> [apiv2][body] POST https://github.com/login/oauth/access_token [stream]
+[debug] [2026-05-06T15:40:10.445Z] <<< [apiv2][status] POST https://github.com/login/oauth/access_token 200
+[debug] [2026-05-06T15:40:10.449Z] <<< [apiv2][body] POST https://github.com/login/oauth/access_token {"access_token":"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","token_type":"bearer","scope":"read:user,repo"}
+[debug] [2026-05-06T15:40:10.484Z] >>> [apiv2][query] GET https://api.github.com/user [none]
+[debug] [2026-05-06T15:40:11.161Z] <<< [apiv2][status] GET https://api.github.com/user 200
+[debug] [2026-05-06T15:40:11.161Z] <<< [apiv2][body] GET https://api.github.com/user {"login":"GAdrianPedrazaJ","id":199179768,"node_id":"U_kgDOC989-A","avatar_url":"https://avatars.githubusercontent.com/u/199179768?v=4","gravatar_id":"","url":"https://api.github.com/users/GAdrianPedrazaJ","html_url":"https://github.com/GAdrianPedrazaJ","followers_url":"https://api.github.com/users/GAdrianPedrazaJ/followers","following_url":"https://api.github.com/users/GAdrianPedrazaJ/following{/other_user}","gists_url":"https://api.github.com/users/GAdrianPedrazaJ/gists{/gist_id}","starred_url":"https://api.github.com/users/GAdrianPedrazaJ/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/GAdrianPedrazaJ/subscriptions","organizations_url":"https://api.github.com/users/GAdrianPedrazaJ/orgs","repos_url":"https://api.github.com/users/GAdrianPedrazaJ/repos","events_url":"https://api.github.com/users/GAdrianPedrazaJ/events{/privacy}","received_events_url":"https://api.github.com/users/GAdrianPedrazaJ/received_events","type":"User","user_view_type":"private","site_admin":false,"name":null,"company":null,"blog":"","location":null,"email":null,"hireable":null,"bio":null,"twitter_username":null,"notification_email":null,"public_repos":39,"public_gists":0,"followers":0,"following":0,"created_at":"2025-02-14T02:34:07Z","updated_at":"2026-05-06T07:22:42Z","private_gists":0,"total_private_repos":5,"owned_private_repos":5,"disk_usage":170210,"collaborators":0,"two_factor_authentication":false,"plan":{"name":"free","space":976562499,"collaborators":0,"private_repos":10000}}
+[info] 
+[info] +  Success! Logged into GitHub as GAdrianPedrazaJ 
+[info] 
