@@ -1,15 +1,39 @@
 export type Rol = 'supervisor' | 'administrador' | 'superadministrador';
 
 export interface Usuario {
-  id_usuario: string;     // PK y vínculo con auth.users
+  id_usuario: string;
+  id?: string;            // Opcional para compatibilidad
   usuario_login: string;
   email: string;
   nombre_completo: string;
   rol: Rol;
   activo: boolean;
-  contrasena?: string;    // Opcional para la UI
+  contrasena?: string;
   fecha_creacion?: string;
   fecha_actualizacion?: string;
+  admin_info?: {
+    sedes: {
+      id: string;
+      nombre: string;
+    };
+  };
+  cedula?: string;
+  nombre?: string;
+  empresa?: string;
+  cargo?: string;
+  estado?: string;
+  sede_id?: string;
+}
+
+export interface Colaborador {
+  id: string;
+  cedula: string;
+  nombre: string;
+  empresa: string;
+  cargo: string;
+  estado: 'Activo' | 'Inactivo';
+  sede_id: string;
+  fecha_creacion?: string;
 }
 
 export interface Sede {
@@ -58,6 +82,7 @@ export interface Area {
 
 export interface ProyeccionDiaria {
   id_proyeccion: string;
+  id?: string;             // Opcional para compatibilidad
   id_supervisor: string;
   id_bloque: string;
   id_variedad: string;
@@ -69,8 +94,11 @@ export interface ProyeccionDiaria {
   variedad?: Variedad;
 }
 
+export type Proyeccion = ProyeccionDiaria;
+
 export interface ProyeccionSemanal {
   id_proyeccion: string;
+  id?: string;             // Opcional para compatibilidad
   id_supervisor: string;
   id_bloque: string;
   id_variedad: string;
@@ -88,4 +116,17 @@ export interface DatoRealDiario {
   fecha: string;
   cantidad: number;
   ingresado_por?: string;
+}
+
+export interface Registro {
+  id: string;
+  colaborador_id: string;
+  tipo: 'Entrada' | 'Salida';
+  medio_transporte: 'Vehículo' | 'Moto' | 'Peatón';
+  placa?: string;
+  fecha_hora: string;
+  sede_id: string;
+  operador_id: string;
+  is_offline?: boolean;
+  created_at?: string;
 }

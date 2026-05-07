@@ -17,7 +17,9 @@ export const syncAllPending = async () => {
     if (error) throw error;
 
     for (const proy of pendingProyecciones) {
-      await deleteLocalProyeccion(proy.id);
+      if (proy.id) {
+        await deleteLocalProyeccion(proy.id);
+      }
     }
 
     return { success: true, count: pendingProyecciones.length };

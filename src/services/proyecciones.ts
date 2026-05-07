@@ -25,25 +25,34 @@ export const proyeccionesService = {
     return data;
   },
 
-  guardarProyeccionDiaria: async (proyeccion: Omit<ProyeccionDiaria, 'id_proyeccion' | 'version' | 'fecha_creacion'>) => {
-    const { data: ultimaVersion } = await supabase
+  guardarProyeccionDiaria: async (proyeccion: any) => {
+    // Buscamos si ya existe para manejar la versión y evitar el error 409
+    const { data: existente } = await supabase
       .from('proyecciones_diarias')
-      .select('version')
-      .eq('id_supervisor', proyeccion.id_supervisor)
-      .eq('id_bloque', proyeccion.id_bloque)
-      .eq('id_variedad', proyeccion.id_variedad)
-      .eq('fecha_proyeccion', proyeccion.fecha_proyeccion)
-      .order('version', { ascending: false })
-      .limit(1);
+      .select('version, id_proyeccion')
+      .match({
+        id_supervisor: proyeccion.id_supervisor,
+        id_bloque: proyeccion.id_bloque,
+        id_variedad: proyeccion.id_variedad,
+        fecha_proyeccion: proyeccion.fecha_proyeccion
+      })
+      .maybeSingle();
 
-    const nuevaVersion = (ultimaVersion?.[0]?.version || 0) + 1;
+    const nuevaVersion = (existente?.version || 0) + 1;
 
     const { data, error } = await supabase
       .from('proyecciones_diarias')
-      .insert([{
-        ...proyeccion,
+      .upsert({
+        ...(existente?.id_proyeccion ? { id_proyeccion: existente.id_proyeccion } : {}),
+        id_supervisor: proyeccion.id_supervisor,
+        id_bloque: proyeccion.id_bloque,
+        id_variedad: proyeccion.id_variedad,
+        fecha_proyeccion: proyeccion.fecha_proyeccion,
+        cantidad: proyeccion.cantidad,
         version: nuevaVersion
-      }])
+      }, {
+        onConflict: 'id_supervisor,id_bloque,id_variedad,fecha_proyeccion'
+      })
       .select()
       .single();
 
@@ -51,7 +60,55 @@ export const proyeccionesService = {
     return data;
   },
 
-  // --- HISTÓRICOS ---
+  // --- PROYECCIONES SEMANALES ---
+  getProyeccionesSemanales: async (idSupervisor: string, ano: number, semanas: number[]) => {
+    const { data, error } = await supabase
+      .from('proyecciones_semanales')
+      .select('*')
+      .eq('id_supervisor', idSupervisor)
+      .eq('ano', ano)
+      .in('semana_num', semanas);
+
+    if (error) throw error;
+    return data;
+  },
+
+  guardarProyeccionSemanal: async (proyeccion: any) => {
+    const { data: existente } = await supabase
+      .from('proyecciones_semanales')
+      .select('version, id_proyeccion')
+      .match({
+        id_supervisor: proyeccion.id_supervisor,
+        id_bloque: proyeccion.id_bloque,
+        id_variedad: proyeccion.id_variedad,
+        semana_num: proyeccion.semana_num,
+        ano: proyeccion.ano
+      })
+      .maybeSingle();
+
+    const nuevaVersion = (existente?.version || 0) + 1;
+
+    const { data, error } = await supabase
+      .from('proyecciones_semanales')
+      .upsert({
+        ...(existente?.id_proyeccion ? { id_proyeccion: existente.id_proyeccion } : {}),
+        id_supervisor: proyeccion.id_supervisor,
+        id_bloque: proyeccion.id_bloque,
+        id_variedad: proyeccion.id_variedad,
+        semana_num: proyeccion.semana_num,
+        ano: proyeccion.ano,
+        cantidad: proyeccion.cantidad,
+        version: nuevaVersion
+      }, {
+        onConflict: 'id_supervisor,id_bloque,id_variedad,semana_num,ano'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
   getHistoricoPER0: async (idSupervisor: string, fechaInicio: string, fechaFin: string) => {
     const { data: proyecciones, error: pError } = await supabase
       .from('proyecciones_diarias')
@@ -81,12 +138,12 @@ export const proyeccionesService = {
     if (rError) throw rError;
 
     const realMap = new Map();
-    reales?.forEach(r => {
+    reales?.forEach((r: any) => {
       const key = `${r.fecha}-${r.id_bloque}-${r.id_variedad}`;
       realMap.set(key, r.cantidad);
     });
 
-    return proyecciones.map(p => {
+    return proyecciones.map((p: any) => {
       const key = `${p.fecha_proyeccion}-${p.id_bloque}-${p.id_variedad}`;
       const cantidadReal = realMap.get(key) || 0;
       const diferencia = p.cantidad > 0 ? ((cantidadReal - p.cantidad) / p.cantidad) * 100 : 0;
@@ -99,59 +156,43 @@ export const proyeccionesService = {
     });
   },
 
-  // --- DATOS MAESTROS (FILTRADOS POR ACTIVO) ---
-  getDatosMaestrosSupervisor: async (idSupervisor: string) => {
-    const { data: usuario } = await supabase
-      .from('usuarios')
-      .select('rol')
-      .eq('id_usuario', idSupervisor)
-      .single();
-
-    let query = supabase
-      .from('areas')
-      .select(`
-        id_area,
-        nombre,
-        areas_bloques(
-          bloque:bloques(*)
-        )
-      `)
-      .eq('activo', true);
-
+  getBloquesAsignados: async (idSupervisor: string) => {
+    const { data: usuario } = await supabase.from('usuarios').select('rol').eq('id_usuario', idSupervisor).single();
+    let query = supabase.from('bloques').select('*, id_sede(nombre)').eq('activo', true);
     if (usuario?.rol === 'supervisor') {
-      query = query.eq('id_supervisor', idSupervisor);
+      const { data: areas } = await supabase.from('areas').select('id_area').eq('id_supervisor', idSupervisor);
+      const areaIds = areas?.map(a => a.id_area) || [];
+      const { data: ab } = await supabase.from('areas_bloques').select('id_bloque').in('id_area', areaIds);
+      const bloqueIds = ab?.map(b => b.id_bloque) || [];
+      query = query.in('id_bloque', bloqueIds);
     }
+    const { data, error } = await query;
+    if (error) throw error;
+    return data;
+  },
 
-    const { data: areas, error: areaError } = await query;
-    if (areaError) throw areaError;
-
-    let bloques = areas?.flatMap(a =>
-      a.areas_bloques
-        .filter((ab: any) => ab.bloque.activo === true)
-        .map((ab: any) => ab.bloque)
-    ) || [];
-
-    if (bloques.length === 0 && usuario?.rol !== 'supervisor') {
-       const { data: todos } = await supabase
-        .from('bloques')
-        .select('*')
-        .eq('activo', true);
-       bloques = todos || [];
-    }
-
-    const { data: variedades, error: varError } = await supabase
-      .from('variedades')
+  getVariedadesPorBloque: async (idBloque: string) => {
+    const { data, error } = await supabase
+      .from('bloques_variedades')
       .select(`
-        *,
-        color:colores(
+        id_variedad,
+        variedad:variedades(
           *,
-          producto:productos(*)
+          color:colores(
+            *,
+            producto:productos(*)
+          )
         )
       `)
+      .eq('id_bloque', idBloque)
       .eq('activo', true);
 
-    if (varError) throw varError;
+    if (error) throw error;
+    return data?.map((item: any) => item.variedad).filter(v => v !== null) || [];
+  },
 
-    return { bloques, variedades };
+  getDatosMaestrosSupervisor: async (idSupervisor: string) => {
+    const bloques = await proyeccionesService.getBloquesAsignados(idSupervisor);
+    return { bloques, variedades: [] };
   }
 };

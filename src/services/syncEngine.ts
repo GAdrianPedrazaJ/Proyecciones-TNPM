@@ -57,7 +57,7 @@ export const syncEngine = {
     }
   },
 
-  async processItemWithRetry(item: SyncQueueItem, retryCount = 0) {
+  async processItemWithRetry(item: SyncQueueItem, retryCount = 0): Promise<void> {
     try {
       const isAvailable = await this.checkDbAvailability();
       if (!isAvailable) {
@@ -70,14 +70,15 @@ export const syncEngine = {
       if (item.action === 'INSERT') {
         result = await supabase.from(item.table).insert(item.data);
       } else if (item.action === 'UPDATE') {
-        const { id_proyeccion, ...updateData } = item.data;
-        result = await supabase.from(item.table).update(updateData).eq('id_proyeccion', id_proyeccion);
+        const idField = item.table === 'proyecciones_diarias' ? 'id_proyeccion' : 'id';
+        result = await supabase.from(item.table).update(item.data).eq(idField, item.data[idField]);
       }
 
       if (result?.error) {
         if (result.error.code === '23505') {
           logger.warn('Conflicto de ID (Duplicate Key). Generando nuevo UUID y reintentando...');
-          const newData = { ...item.data, id_proyeccion: crypto.randomUUID() };
+          const idField = item.table === 'proyecciones_diarias' ? 'id_proyeccion' : 'id';
+          const newData = { ...item.data, [idField]: crypto.randomUUID() };
           await db.sync_queue.update(item.id!, { data: newData });
           return this.processItemWithRetry({ ...item, data: newData }, retryCount);
         }

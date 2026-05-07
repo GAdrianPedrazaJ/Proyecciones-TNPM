@@ -41,8 +41,8 @@ const Dashboard: React.FC = () => {
       medio_transporte: medio,
       placa: medio !== 'Peatón' ? placa : undefined,
       fecha_hora: new Date().toISOString(),
-      sede_id: user.admin_info?.sedes.id || colaborador.sede_id, // Usamos la sede del admin o del colaborador
-      operador_id: user.id,
+      sede_id: user.admin_info?.sedes.id || colaborador.sede_id,
+      operador_id: user.id_usuario,
       is_offline: !navigator.onLine
     });
 
@@ -51,7 +51,6 @@ const Dashboard: React.FC = () => {
         type: 'success',
         text: `${tipo} registrada exitosamente ${res.offline ? '(Modo Offline)' : ''}`
       });
-      // Reset form
       setCedula('');
       setColaborador(null);
       setPlaca('');
@@ -62,21 +61,20 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <header>
-        <h2 className="text-3xl font-bold text-gray-900 text-center">Registro de Acceso</h2>
-        <p className="text-gray-500 text-center">Escanee o ingrese la cédula del colaborador</p>
+    <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in duration-500">
+      <header className="text-center space-y-2">
+        <h2 className="text-4xl font-black text-slate-950 tracking-tighter uppercase italic">Registro de Acceso</h2>
+        <p className="text-slate-600 font-bold">Escanee o ingrese el identificador del colaborador</p>
       </header>
 
-      {/* Buscador */}
-      <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
-        <form onSubmit={handleSearch} className="flex gap-4">
+      <div className="bg-white p-10 rounded-[3rem] shadow-sm border-2 border-slate-100">
+        <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
             <input
               type="text"
-              placeholder="Ingrese Cédula..."
-              className="w-full pl-12 pr-4 py-4 bg-gray-50 border-none rounded-xl text-xl font-medium focus:ring-2 focus:ring-blue-500"
+              placeholder="Ingrese Cédula / ID..."
+              className="w-full pl-14 pr-6 py-5 bg-slate-50 border-2 border-transparent focus:border-purple-300 rounded-2xl text-2xl font-black text-slate-950 focus:ring-4 focus:ring-purple-100 transition-all outline-none"
               value={cedula}
               onChange={(e) => setCedula(e.target.value)}
               autoFocus
@@ -85,42 +83,42 @@ const Dashboard: React.FC = () => {
           <button
             type="submit"
             disabled={loading}
-            className="bg-blue-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-blue-700 transition-all disabled:opacity-50"
+            className="bg-purple-600 text-white px-10 py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-purple-700 shadow-xl shadow-purple-200 active:scale-95 transition-all disabled:opacity-50"
           >
             {loading ? 'Buscando...' : 'BUSCAR'}
           </button>
         </form>
 
         {message && (
-          <div className={`mt-4 p-4 rounded-xl flex items-center gap-3 ${
-            message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+          <div className={`mt-6 p-5 rounded-2xl flex items-center gap-4 border-2 animate-in slide-in-from-top-2 ${
+            message.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-100' : 'bg-red-50 text-red-800 border-red-100'
           }`}>
-            {message.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
-            <span className="font-medium">{message.text}</span>
+            {message.type === 'success' ? <CheckCircle2 size={24} /> : <AlertCircle size={24} />}
+            <span className="font-black text-sm uppercase tracking-tight">{message.text}</span>
           </div>
         )}
       </div>
 
-      {/* Panel de Acción (Solo si se encuentra colaborador) */}
       {colaborador && (
-        <div className="grid md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          {/* Info Colaborador */}
-          <div className="bg-white p-6 rounded-2xl shadow-lg border-l-4 border-blue-500">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
-                <User size={32} />
+        <div className="grid md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border-2 border-slate-100 border-l-8 border-l-purple-600 flex flex-col justify-center">
+            <div className="flex items-center gap-6">
+              <div className="w-20 h-20 bg-purple-100 rounded-3xl flex items-center justify-center text-purple-600 shadow-inner">
+                <User size={40} />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">{colaborador.nombre}</h3>
-                <p className="text-gray-500">{colaborador.empresa} - {colaborador.cargo}</p>
+                <h3 className="text-2xl font-black text-slate-950 tracking-tight">{colaborador.nombre}</h3>
+                <p className="text-slate-600 font-bold uppercase text-xs tracking-widest mt-1">{colaborador.empresa}</p>
+                <p className="text-purple-600 font-black text-[10px] uppercase tracking-[0.2em] mt-2">{colaborador.cargo}</p>
               </div>
             </div>
           </div>
 
-          {/* Opciones de Transporte */}
-          <div className="bg-white p-6 rounded-2xl shadow-lg">
-            <h4 className="font-bold text-gray-700 mb-4">Medio de Transporte</h4>
-            <div className="flex gap-2">
+          <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border-2 border-slate-100">
+            <h4 className="font-black text-slate-900 text-xs uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+              <Truck size={16} className="text-purple-500" /> Medio de Transporte
+            </h4>
+            <div className="flex gap-3">
               {[
                 { id: 'Peatón', icon: Footprints },
                 { id: 'Moto', icon: Bike },
@@ -129,14 +127,14 @@ const Dashboard: React.FC = () => {
                 <button
                   key={item.id}
                   onClick={() => setMedio(item.id as any)}
-                  className={`flex-1 flex flex-col items-center p-3 rounded-xl border-2 transition-all ${
+                  className={`flex-1 flex flex-col items-center p-4 rounded-2xl border-2 transition-all active:scale-95 ${
                     medio === item.id
-                      ? 'border-blue-600 bg-blue-50 text-blue-600'
-                      : 'border-gray-100 text-gray-400 hover:border-gray-200'
+                      ? 'border-purple-600 bg-purple-50 text-purple-600 shadow-md shadow-purple-100'
+                      : 'border-slate-100 text-slate-400 hover:border-slate-200 bg-slate-50/50'
                   }`}
                 >
-                  <item.icon size={24} />
-                  <span className="text-xs font-bold mt-1">{item.id}</span>
+                  <item.icon size={28} />
+                  <span className="text-[10px] font-black mt-2 uppercase tracking-tighter">{item.id}</span>
                 </button>
               ))}
             </div>
@@ -144,28 +142,29 @@ const Dashboard: React.FC = () => {
             {medio !== 'Peatón' && (
               <input
                 type="text"
-                placeholder="Placa del vehículo..."
-                className="w-full mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg text-center font-bold uppercase"
+                placeholder="PLACA..."
+                className="w-full mt-6 p-4 bg-slate-50 border-2 border-slate-200 rounded-xl text-center font-black text-xl text-slate-950 uppercase focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all outline-none"
                 value={placa}
                 onChange={(e) => setPlaca(e.target.value)}
               />
             )}
           </div>
 
-          {/* Botones de Movimiento */}
-          <div className="md:col-span-2 flex gap-4">
+          <div className="md:col-span-2 flex gap-6">
             <button
               onClick={() => handleRegistro('Entrada')}
               disabled={loading}
-              className="flex-1 bg-green-600 text-white py-6 rounded-2xl text-2xl font-black shadow-lg hover:bg-green-700 active:scale-95 transition-all"
+              className="flex-1 bg-emerald-600 text-white py-8 rounded-[2rem] text-3xl font-black shadow-xl shadow-emerald-200 hover:bg-emerald-700 active:scale-95 transition-all flex flex-col items-center justify-center gap-2"
             >
+              <span className="text-[10px] uppercase tracking-[0.5em] opacity-80">Registrar</span>
               ENTRADA
             </button>
             <button
               onClick={() => handleRegistro('Salida')}
               disabled={loading}
-              className="flex-1 bg-orange-500 text-white py-6 rounded-2xl text-2xl font-black shadow-lg hover:bg-orange-600 active:scale-95 transition-all"
+              className="flex-1 bg-slate-950 text-white py-8 rounded-[2rem] text-3xl font-black shadow-xl shadow-slate-200 hover:bg-black active:scale-95 transition-all flex flex-col items-center justify-center gap-2"
             >
+              <span className="text-[10px] uppercase tracking-[0.5em] opacity-80">Registrar</span>
               SALIDA
             </button>
           </div>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Colaborador } from '../../types/database';
+import { User, Building2, Briefcase, CheckCircle2 } from 'lucide-react';
 
 interface ColaboradorFormProps {
   onSubmit: (data: Omit<Colaborador, 'id'>) => Promise<void>;
@@ -22,63 +23,83 @@ const ColaboradorForm: React.FC<ColaboradorFormProps> = ({ onSubmit, initialData
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Cédula</label>
-        <input
-          type="text"
-          required
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-gray-50 p-2"
-          value={formData.cedula}
-          onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Nombre Completo</label>
-        <input
-          type="text"
-          required
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-gray-50 p-2"
-          value={formData.nombre}
-          onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Empresa</label>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Identificación (Cédula)</label>
+          <div className="relative">
+            <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              type="text"
+              required
+              placeholder="Ej: 12345678"
+              className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all font-black text-slate-900 outline-none"
+              value={formData.cedula}
+              onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Nombre Completo</label>
           <input
             type="text"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-gray-50 p-2"
-            value={formData.empresa}
-            onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
+            required
+            placeholder="Nombre y Apellidos"
+            className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all font-black text-slate-900 outline-none"
+            value={formData.nombre}
+            onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Cargo</label>
-          <input
-            type="text"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-gray-50 p-2"
-            value={formData.cargo}
-            onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
-          />
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Empresa</label>
+            <div className="relative">
+              <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input
+                type="text"
+                placeholder="Nombre Empresa"
+                className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all font-black text-slate-900 outline-none"
+                value={formData.empresa}
+                onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Cargo</label>
+            <div className="relative">
+              <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input
+                type="text"
+                placeholder="Puesto"
+                className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all font-black text-slate-900 outline-none"
+                value={formData.cargo}
+                onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Estado Operativo</label>
+          <select
+            className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all font-black text-slate-900 outline-none appearance-none cursor-pointer"
+            value={formData.estado}
+            onChange={(e) => setFormData({ ...formData, estado: e.target.value as 'Activo' | 'Inactivo' })}
+          >
+            <option value="Activo">ACTIVO / HABILITADO</option>
+            <option value="Inactivo">INACTIVO / BLOQUEADO</option>
+          </select>
         </div>
       </div>
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Estado</label>
-        <select
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 bg-gray-50 p-2"
-          value={formData.estado}
-          onChange={(e) => setFormData({ ...formData, estado: e.target.value as 'Activo' | 'Inactivo' })}
-        >
-          <option value="Activo">Activo</option>
-          <option value="Inactivo">Inactivo</option>
-        </select>
-      </div>
+
       <button
         type="submit"
-        className="w-full bg-blue-600 text-white py-2 px-4 rounded-md font-bold hover:bg-blue-700 transition-colors mt-6"
+        className="w-full bg-purple-600 text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-purple-700 shadow-xl shadow-purple-200 transition-all active:scale-95 flex items-center justify-center gap-3"
       >
-        {initialData ? 'Actualizar' : 'Registrar'} Colaborador
+        <CheckCircle2 size={20} />
+        {initialData ? 'Actualizar Colaborador' : 'Registrar Nuevo'}
       </button>
     </form>
   );

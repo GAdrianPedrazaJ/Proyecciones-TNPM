@@ -1,25 +1,29 @@
 import React, { useEffect, useState } from 'react';
 import {
   TrendingUp,
-  Layers,
   Box,
   Database,
-  Plus,
-  Filter,
+  RefreshCcw,
   Loader2,
-  RefreshCcw
+  Users,
+  MapPin,
+  FileSpreadsheet,
+  ArrowUpRight,
+  ArrowDownRight
 } from 'lucide-react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  AreaChart, Area, BarChart, Bar, Legend
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, Legend
 } from 'recharts';
+import * as XLSX from 'xlsx';
 import { adminService } from '../services/adminService';
 
 const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [graficoData, setGraficoData] = useState<any[]>([]);
   const [agregados, setAgregados] = useState<any[]>([]);
-  const [filtros, setFiltros] = useState({ id_bloque: '', id_color: '' });
+  const [stats, setStats] = useState({ sedes: 0, bloques: 0, productos: 0, variedades: 0, usuarios: 0 });
+  const [filtros] = useState({ id_bloque: '', id_color: '' });
 
   useEffect(() => {
     cargarDatos();
@@ -28,20 +32,23 @@ const AdminDashboard: React.FC = () => {
   const cargarDatos = async () => {
     setLoading(true);
     try {
-      const data = await adminService.getDatosGraficoPER0(filtros);
-      setGraficoData(data);
+      const [grafico, estadisticas] = await Promise.all([
+        adminService.getDatosGraficoPER0(filtros),
+        adminService.getStats()
+      ]);
 
-      // Para la tabla de agregados (lógica simplificada para el demo)
+      setGraficoData(grafico);
+      setStats(estadisticas);
+
       const { proyecciones, reales } = await adminService.getAgregadoPER0(filtros);
 
-      // Agrupar por bloque y variedad para la tabla
       const map = new Map();
       proyecciones?.forEach((p: any) => {
         const key = `${p.id_bloque}-${p.id_variedad}`;
         if (!map.has(key)) {
           map.set(key, {
             bloque: p.bloque?.nombre,
-            producto: p.variedad?.producto?.nombre,
+            producto: p.variedad?.color?.producto?.nombre,
             variedad: p.variedad?.nombre,
             color: p.variedad?.color?.nombre,
             proyectado: 0,
@@ -60,126 +67,174 @@ const AdminDashboard: React.FC = () => {
 
       setAgregados(Array.from(map.values()));
     } catch (error) {
-      console.error("Error cargando datos admin:", error);
+      console.error("Error en dashboard:", error);
     } finally {
       setLoading(false);
     }
   };
 
+  const exportarExcel = () => {
+    const dataToExport = agregados.map(item => ({
+      Bloque: item.bloque,
+      Producto: item.producto,
+      Variedad: item.variedad,
+      Color: item.color,
+      Proyectado: item.proyectado,
+      Real: item.real,
+      Diferencia: item.real - item.proyectado,
+      Cumplimiento: item.proyectado > 0 ? `${((item.real / item.proyectado) * 100).toFixed(1)}%` : '0%'
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Agregado PER0");
+    XLSX.writeFile(wb, `Reporte_Cumplimiento_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   return (
-    <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-700 max-w-7xl mx-auto">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="space-y-10 animate-in fade-in duration-700 max-w-7xl mx-auto pb-12">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-300 pb-8">
         <div>
-          <h2 className="text-3xl font-black text-indigo-950 flex items-center gap-3">
-            <TrendingUp className="text-indigo-500" size={32} /> Panel de Control Administrativo
+          <div className="flex items-center gap-2 mb-2">
+            <span className="h-1 w-8 bg-purple-600 rounded-full shadow-sm"></span>
+            <span className="text-[10px] font-black text-purple-600 uppercase tracking-[0.3em]">Business Intelligence</span>
+          </div>
+          <h2 className="text-4xl font-black text-slate-950 flex items-center gap-3 tracking-tighter uppercase italic">
+            Dashboard Curvas
           </h2>
-          <p className="text-slate-500 font-medium italic mt-1">Análisis PER0: Proyectado vs Real (Semana Actual)</p>
+          <p className="text-slate-700 font-bold mt-2 italic">Análisis global de producción y cumplimiento proyectado.</p>
         </div>
-        <div className="flex gap-2">
-           <button
-            onClick={cargarDatos}
-            className="p-4 bg-white border border-slate-100 rounded-2xl text-indigo-600 hover:bg-slate-50 transition-all shadow-sm"
-           >
-             <RefreshCcw size={20} className={loading ? 'animate-spin' : ''} />
-           </button>
-        </div>
+        <button
+          onClick={cargarDatos}
+          className="p-4 bg-white border-2 border-slate-200 rounded-2xl text-slate-600 hover:text-purple-600 hover:border-purple-600 transition-all active:scale-95 shadow-sm"
+        >
+          <RefreshCcw size={20} className={loading ? 'animate-spin' : ''} />
+        </button>
       </header>
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-4">
-          <Loader2 className="animate-spin text-indigo-500" size={48} />
-          <p className="font-bold">Procesando métricas en tiempo real...</p>
+        <div className="flex flex-col items-center justify-center h-[50vh] text-slate-500 gap-6">
+          <Loader2 className="animate-spin text-purple-600" size={48} />
+          <p className="font-black uppercase tracking-[0.4em] text-[10px]">Sincronizando Métricas...</p>
         </div>
       ) : (
         <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { t: 'Sedes Activas', v: stats.sedes, icon: MapPin, color: 'text-purple-600', bg: 'bg-purple-100' },
+              { t: 'Bloques Totales', v: stats.bloques, icon: Box, color: 'text-purple-600', bg: 'bg-purple-100' },
+              { t: 'Variedades', v: stats.variedades, icon: Database, color: 'text-purple-600', bg: 'bg-purple-100' },
+              { t: 'Equipo Humano', v: stats.usuarios, icon: Users, color: 'text-purple-600', bg: 'bg-purple-100' }
+            ].map((stat, i) => (
+              <div key={i} className="bg-white p-6 rounded-[2.5rem] border-2 border-slate-100 shadow-sm flex items-center gap-5">
+                <div className={`${stat.bg} ${stat.color} p-4 rounded-2xl border border-purple-200 shadow-sm`}>
+                  <stat.icon size={24} />
+                </div>
+                <div>
+                  <p className="text-3xl font-black text-slate-950 tracking-tight italic">{stat.v}</p>
+                  <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{stat.t}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 bg-white p-8 rounded-[3rem] shadow-xl border border-indigo-50 min-h-[450px]">
-              <h3 className="text-lg font-black text-indigo-900 mb-8 flex items-center gap-2">
-                <TrendingUp className="text-indigo-500" /> Curva de Cumplimiento Semanal
-              </h3>
-              <ResponsiveContainer width="100%" height="85%">
-                <AreaChart data={graficoData}>
-                  <defs>
-                    <linearGradient id="colorProy" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
-                  />
-                  <Legend verticalAlign="top" height={36}/>
-                  <Area type="monotone" dataKey="proyectado" stroke="#6366f1" strokeWidth={4} fillOpacity={1} fill="url(#colorProy)" name="Proyectado" />
-                  <Line type="monotone" dataKey="real" stroke="#10b981" strokeWidth={4} dot={{r: 6, fill: '#10b981', stroke: '#fff', strokeWidth: 2}} name="Real" />
-                </AreaChart>
-              </ResponsiveContainer>
+            <div className="lg:col-span-2 bg-white p-10 rounded-[3rem] shadow-sm border-2 border-slate-100 min-h-[450px]">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <TrendingUp className="text-purple-600" size={20} /> Tendencia Semanal
+                </h3>
+                <div className="flex items-center gap-4 text-[9px] font-black uppercase tracking-widest">
+                  <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-purple-600 shadow-sm"></span> <span className="text-slate-800">Proyectado</span></div>
+                  <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span> <span className="text-slate-800">Real</span></div>
+                </div>
+              </div>
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={graficoData}>
+                    <defs>
+                      <linearGradient id="colorProy" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#475569', fontSize: 10, fontWeight: 800}} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#475569', fontSize: 10, fontWeight: 800}} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#fff', borderRadius: '24px', border: '2px solid #f1f5f9', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', padding: '16px' }}
+                      itemStyle={{ fontWeight: 800, fontSize: '12px', color: '#1e293b' }}
+                    />
+                    <Area type="monotone" dataKey="proyectado" stroke="#8b5cf6" strokeWidth={4} fillOpacity={1} fill="url(#colorProy)" name="Proyectado" />
+                    <Area type="monotone" dataKey="real" stroke="#94a3b8" strokeWidth={4} fillOpacity={0} name="Real" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             </div>
 
-            <div className="space-y-4">
-              <h3 className="text-xs font-black text-indigo-400 uppercase tracking-widest ml-2">Resumen de Activos</h3>
-              {[
-                { t: 'Áreas Productivas', icon: Layers, c: '4 Sedes' },
-                { t: 'Supervisores', icon: Box, c: '12 Activos' },
-                { t: 'Naves / Bloques', icon: Box, c: '24 Registrados' },
-                { t: 'Variedades', icon: Database, c: '32 Tipos' }
-              ].map(item => (
-                <div key={item.t} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center justify-between hover:translate-x-2 transition-transform cursor-pointer group">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-slate-50 rounded-2xl text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                      <item.icon size={18} />
-                    </div>
-                    <span className="font-bold text-indigo-950">{item.t}</span>
+            <div className="bg-slate-950 rounded-[3rem] p-10 text-white flex flex-col justify-between relative overflow-hidden shadow-2xl group cursor-pointer">
+               <div className="relative z-10 space-y-6">
+                  <div className="w-16 h-16 bg-white/10 backdrop-blur-xl rounded-2xl flex items-center justify-center border border-white/20">
+                    <FileSpreadsheet className="text-purple-400" size={32} />
                   </div>
-                  <span className="bg-slate-50 px-3 py-1 rounded-lg text-xs font-black text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600">{item.c}</span>
-                </div>
-              ))}
+                  <h4 className="text-3xl font-black italic tracking-tighter leading-tight">Exportar Reporte Maestro</h4>
+                  <p className="text-white/70 text-sm font-medium leading-relaxed">Analice desviaciones y cumplimiento por cada bloque y variedad en un archivo Excel.</p>
+                  <button
+                    onClick={exportarExcel}
+                    className="w-full bg-purple-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.3em] hover:bg-white hover:text-black transition-all flex items-center justify-center gap-3 shadow-xl active:scale-95"
+                  >
+                    Descargar XLS <ArrowUpRight size={18} />
+                  </button>
+               </div>
+               <div className="absolute -bottom-20 -right-20 text-white/5 pointer-events-none group-hover:scale-110 transition-transform duration-700">
+                 <FileSpreadsheet size={300} />
+               </div>
             </div>
           </div>
 
-          <section className="bg-white rounded-[3rem] shadow-xl border border-indigo-50 overflow-hidden">
-            <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
-              <h3 className="text-xl font-black text-indigo-950 uppercase tracking-tight">Agregado PER0 - Detalles</h3>
-              <div className="flex gap-2">
-                <button className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all">Exportar Excel</button>
-              </div>
+          <section className="bg-white rounded-[3rem] shadow-sm border-2 border-slate-100 overflow-hidden">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-[0.3em] flex items-center gap-2">
+                Detalle de Rendimiento por Variedad
+              </h3>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left">
                 <thead>
-                  <tr className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] bg-white">
-                    <th className="px-8 py-6">Bloque</th>
-                    <th className="px-8 py-6">Producto / Variedad</th>
-                    <th className="px-8 py-6 text-right">Proyectado</th>
-                    <th className="px-8 py-6 text-right">Real</th>
-                    <th className="px-8 py-6 text-right">Diferencia</th>
+                  <tr className="text-[10px] font-black text-slate-600 uppercase tracking-[0.3em] bg-white border-b border-slate-100">
+                    <th className="px-10 py-8">Estructura</th>
+                    <th className="px-10 py-8">Variedad / Color</th>
+                    <th className="px-10 py-8 text-right">Proyectado</th>
+                    <th className="px-10 py-8 text-right">Real</th>
+                    <th className="px-10 py-8 text-right">Eficiencia</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {agregados.map((item, idx) => {
+                <tbody className="divide-y divide-slate-100">
+                  {agregados.length === 0 ? (
+                    <tr><td colSpan={5} className="p-24 text-center text-slate-500 font-black italic tracking-widest uppercase text-xs">No hay datos en el periodo actual</td></tr>
+                  ) : agregados.map((item, idx) => {
                     const diff = item.real - item.proyectado;
-                    const porc = item.proyectado > 0 ? (diff / item.proyectado) * 100 : 0;
-                    const isOk = Math.abs(porc) <= 10;
+                    const porc = item.proyectado > 0 ? (item.real / item.proyectado) * 100 : 0;
+                    const isPositive = porc >= 90;
 
                     return (
-                      <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">
-                        <td className="px-8 py-5">
-                          <span className="font-black text-indigo-900 bg-indigo-50 px-3 py-1 rounded-lg text-xs">{item.bloque}</span>
+                      <tr key={idx} className="hover:bg-slate-50 transition-colors group">
+                        <td className="px-10 py-6">
+                          <span className="font-black text-purple-600 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-xl text-[10px] uppercase tracking-widest italic shadow-sm">{item.bloque}</span>
                         </td>
-                        <td className="px-8 py-5">
+                        <td className="px-10 py-6">
                           <div className="flex flex-col">
-                            <span className="font-black text-slate-800 text-sm">{item.producto}</span>
-                            <span className="text-xs text-indigo-600 font-bold">{item.variedad} ({item.color})</span>
+                            <span className="font-black text-slate-900 text-sm group-hover:text-purple-600 transition-colors uppercase italic tracking-tighter">{item.producto} {item.variedad}</span>
+                            <span className="text-[9px] text-slate-600 font-black uppercase tracking-widest mt-1">{item.color}</span>
                           </div>
                         </td>
-                        <td className="px-8 py-5 text-right font-black text-indigo-950">{item.proyectado.toLocaleString()}</td>
-                        <td className="px-8 py-5 text-right font-black text-emerald-600">{item.real.toLocaleString()}</td>
-                        <td className="px-8 py-5 text-right">
-                          <span className={`font-black text-xs px-3 py-1 rounded-full ${isOk ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                            {porc > 0 ? '+' : ''}{porc.toFixed(1)}%
-                          </span>
+                        <td className="px-10 py-6 text-right font-black text-slate-700">{item.proyectado.toLocaleString()}</td>
+                        <td className="px-10 py-6 text-right font-black text-slate-950">{item.real.toLocaleString()}</td>
+                        <td className="px-10 py-6 text-right">
+                          <div className={`inline-flex items-center gap-1.5 font-black text-[10px] px-4 py-2 rounded-full border shadow-sm ${isPositive ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                            {isPositive ? <ArrowUpRight size={12}/> : <ArrowDownRight size={12}/>}
+                            {porc.toFixed(1)}%
+                          </div>
                         </td>
                       </tr>
                     );

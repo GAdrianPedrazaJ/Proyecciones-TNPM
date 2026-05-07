@@ -1,19 +1,33 @@
 import { supabase } from './supabase';
 
 export const masterService = {
-  // Obtener registros activos
+  // Obtener registros activos con ordenamiento inteligente por tabla
   getItems: async (tabla: string, selectQuery: string = '*') => {
-    const { data, error } = await supabase
+    let query = supabase
       .from(tabla)
       .select(selectQuery)
-      .eq('activo', true)
-      .order('fecha_creacion' as any, { ascending: false });
+      .eq('activo', true);
 
-    if (error) throw error;
+    // Definimos qué columna usar para ordenar según la tabla
+    const tablasConFecha = ['sedes', 'bloques', 'usuarios', 'proyecciones_diarias', 'proyecciones_semanales', 'datos_reales_diarios'];
+    const tablasConNombre = ['productos', 'colores', 'variedades', 'areas'];
+
+    if (tablasConFecha.includes(tabla.toLowerCase())) {
+      query = query.order('fecha_creacion' as any, { ascending: false });
+    } else if (tablasConNombre.includes(tabla.toLowerCase())) {
+      query = query.order('nombre' as any, { ascending: true });
+    } else if (tabla.toLowerCase() === 'areas_bloques') {
+      query = query.order('fecha_asignacion' as any, { ascending: false });
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error(`Error en getItems para ${tabla}:`, error.message);
+      throw error;
+    }
     return data;
   },
 
-  // Borrado lógico (Desactivar) - Soporta ambos nombres para evitar errores
   deleteItem: async (tabla: string, idCampo: string, idValor: string) => {
     const { error } = await supabase
       .from(tabla)
@@ -24,15 +38,7 @@ export const masterService = {
     return true;
   },
 
-  desactivarItem: async (tabla: string, idCampo: string, idValor: string) => {
-    return masterService.deleteItem(tabla, idCampo, idValor);
-  },
-
-  // Guardar (Crear o Editar)
   saveItem: async (tabla: string, datos: any) => {
-    console.log(`Intentando guardar en ${tabla}:`, datos);
-
-    // Limpieza de datos: Evitar que strings vacíos rompan campos UUID o FK
     const cleanData = { ...datos };
     Object.keys(cleanData).forEach(key => {
       if (cleanData[key] === "" || cleanData[key] === null || cleanData[key] === undefined) {
@@ -40,8 +46,6 @@ export const masterService = {
       }
     });
 
-    // Usamos upsert de Supabase.
-    // Si cleanData incluye el ID primario, actualizará. Si no, insertará uno nuevo.
     const { data, error } = await supabase
       .from(tabla)
       .upsert(cleanData)
@@ -49,11 +53,9 @@ export const masterService = {
       .single();
 
     if (error) {
-      console.error(`Error de base de datos en ${tabla}:`, error.message, error.details);
+      console.error(`Error guardando en ${tabla}:`, error.message);
       throw new Error(error.message);
     }
-
-    console.log(`Registro guardado exitosamente en ${tabla}`);
     return data;
   }
 };

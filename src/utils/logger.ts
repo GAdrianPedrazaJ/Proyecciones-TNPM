@@ -1,34 +1,36 @@
-/**
- * Logger seguro para producción
- * Controla qué se muestra en consola dependiendo del entorno
- */
+import { useNotificationStore } from '../store/notificationStore';
 
 const isProd = import.meta.env.PROD;
 
 export const logger = {
   info: (message: string, data?: any) => {
     if (!isProd) {
-      console.log(`[INFO] ${new Date().toISOString()}: ${message}`, data || '');
+      console.log(`%c[INFO] ${new Date().toLocaleTimeString()}: ${message}`, 'color: #8b5cf6; font-weight: bold;', data || '');
     }
-    // Aquí se podría integrar con Sentry o LogRocket
   },
 
   warn: (message: string, data?: any) => {
-    console.warn(`[WARN] ${new Date().toISOString()}: ${message}`, data || '');
+    console.warn(`[WARN] ${new Date().toLocaleTimeString()}: ${message}`, data || '');
   },
 
   error: (message: string, error?: any) => {
-    // Los errores siempre se loguean, pero podemos filtrar datos sensibles
-    console.error(`[ERROR] ${new Date().toISOString()}: ${message}`, {
-      message: error?.message,
+    const errorMsg = error?.message || 'Error desconocido';
+    console.error(`%c[ERROR] ${new Date().toLocaleTimeString()}: ${message}`, 'color: #ef4444; font-weight: bold;', {
+      message: errorMsg,
       code: error?.code,
-      stack: isProd ? 'Redacted' : error?.stack
+      details: error
     });
+
+    // Notificar al usuario visualmente de forma automática
+    useNotificationStore.getState().addNotification(
+      `${message}: ${errorMsg}`,
+      'error'
+    );
   },
 
   sync: (message: string, data?: any) => {
     if (!isProd) {
-      console.debug(`[SYNC] ${new Date().toISOString()}: ${message}`, data || '');
+      console.log(`%c[SYNC] ${new Date().toLocaleTimeString()}: ${message}`, 'color: #10b981; font-weight: bold;', data || '');
     }
   }
 };

@@ -2,40 +2,55 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+@layer base {
+  :root {
+    --brand-lilac: #8b5cf6;
+    --brand-lilac-light: #ddd6fe;
+    --bg-light: #f8fafc;
+    --sidebar-dark: #000000;
+  }
+
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  body {
+    /* Fondo claro, pero texto base mucho más oscuro y sólido */
+    @apply bg-slate-50 text-slate-900 m-0 p-0 min-h-screen w-full overflow-x-hidden;
+  }
 }
 
-body {
+@layer components {
+  /* Títulos de alto impacto */
+  .heading-strong {
+    @apply font-black text-slate-950 tracking-tighter uppercase italic;
+  }
+
+  /* Texto de cuerpo con mejor contraste */
+  .text-body {
+    @apply text-slate-700 font-medium;
+  }
+
+  .card-light {
+    @apply bg-white border border-slate-200 shadow-sm rounded-[2.5rem];
+  }
+
+  .btn-lilac {
+    @apply bg-purple-600 text-white hover:bg-purple-700 active:scale-95 transition-all duration-300 font-black px-8 py-4 rounded-2xl shadow-lg shadow-purple-200;
+  }
+
+  .input-standard {
+    @apply w-full bg-slate-50 border-2 border-slate-100 py-4 px-6 rounded-2xl focus:ring-4 focus:ring-purple-500/10 focus:border-purple-500 transition-all font-bold text-slate-900 outline-none placeholder:text-slate-400;
+  }
+}
+
+/* Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
   margin: 0;
-  padding: 0;
-  min-height: 100vh;
-  width: 100%;
-  background-color: #f8fafc; /* slate-50 */
 }
 
-#root {
-  min-height: 100vh;
-  width: 100%;
-}
-
-/* Scrollbar personalizada para un look más moderno */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #e2e8f0;
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #cbd5e1;
+input[type=number] {
+  -moz-appearance: textfield;
 }

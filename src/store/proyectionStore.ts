@@ -6,10 +6,12 @@ interface ProyectionStore {
   proyecciones: ProyeccionDiaria[];
   fechaActual: string;
   loading: boolean;
+  idBloqueSeleccionado: string;
 
   // Acciones
   setProyecciones: (proyecciones: ProyeccionDiaria[]) => void;
   setFechaActual: (fecha: string) => void;
+  setIdBloqueSeleccionado: (id: string) => void;
   fetchProyecciones3Dias: (fecha: string, idSupervisor: string) => Promise<void>;
 
   obtenerProyecciones3Dias: (fecha: string) => {
@@ -25,9 +27,11 @@ export const useProyectionStore = create<ProyectionStore>((set, get) => ({
   proyecciones: [],
   fechaActual: new Date().toISOString().split('T')[0],
   loading: false,
+  idBloqueSeleccionado: '',
 
   setProyecciones: (proyecciones) => set({ proyecciones }),
   setFechaActual: (fecha) => set({ fechaActual: fecha }),
+  setIdBloqueSeleccionado: (id) => set({ idBloqueSeleccionado: id }),
 
   fetchProyecciones3Dias: async (fecha, idSupervisor) => {
     set({ loading: true });

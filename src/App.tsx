@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import Layout from './components/Layout';
 import { useNavStore } from './store/navStore';
 import { useAuthStore } from './store/authStore';
-import { authService } from './services/authService'; // Este deberá migrarse a Firebase próximamente
+import { authService } from './services/authService';
 import { SupervisorDiario } from './components/SupervisorDiario';
 import { SupervisorSemanal } from './components/SupervisorSemanal';
 import { SupervisorHistorico } from './components/SupervisorHistorico';
+import { SupervisorBloques } from './components/SupervisorBloques';
+import { SupervisorSemanaDetalle } from './components/SupervisorSemanaDetalle';
 import { GestionUsuarios } from './components/GestionUsuarios';
 import { GestionSedes } from './components/Admin/GestionSedes';
 import { GestionBloques } from './components/Admin/GestionBloques';
@@ -13,9 +15,12 @@ import { GestionProductos } from './components/Admin/GestionProductos';
 import { GestionColores } from './components/Admin/GestionColores';
 import { GestionVariedades } from './components/Admin/GestionVariedades';
 import { GestionAreas } from './components/Admin/GestionAreas';
+import { GestionAreasBloques } from './components/Admin/GestionAreasBloques';
+import { ImportadorExcel } from './components/ImportadorExcel';
 import AdminDashboard from './pages/AdminDashboard';
-import { TrendingUp, Lock, User, Loader2, AlertCircle } from 'lucide-react';
+import { TrendingUp, Lock, User, Loader2, AlertCircle, ArrowRight } from 'lucide-react';
 import { logger } from './utils/logger';
+import { NotificationToast } from './components/UI/NotificationToast';
 
 const App: React.FC = () => {
   const { currentView, setCurrentView } = useNavStore();
@@ -34,7 +39,6 @@ const App: React.FC = () => {
         const currentUser = await authService.getCurrentUser();
         if (currentUser) {
           setUser(currentUser);
-          logger.info(`Usuario recuperado: ${currentUser.usuario_login}`);
         }
       } catch (e) {
         logger.error("Error inicializando app", e);
@@ -45,20 +49,22 @@ const App: React.FC = () => {
     initApp();
   }, [setUser]);
 
-  // Protección de rutas/vistas mediante lógica de renderizado
   useEffect(() => {
     if (user) {
-      const adminViews = ['admin-dashboard', 'admin-tablas', 'gestion-sedes', 'gestion-bloques', 'gestion-productos', 'gestion-colores', 'gestion-variedades', 'gestion-areas'];
+      const adminViews = [
+        'admin-dashboard', 'admin-tablas', 'importar-excel',
+        'gestion-sedes', 'gestion-bloques', 'gestion-productos',
+        'gestion-colores', 'gestion-variedades', 'gestion-areas',
+        'gestion-areas-bloques'
+      ];
       const superAdminViews = ['super-usuarios', 'super-roles'];
 
       if (adminViews.includes(currentView) && !isAdmin()) {
-        logger.warn(`Acceso no autorizado intentado a ${currentView} por ${user.usuario_login}`);
-        setCurrentView('supervisor-diaria');
+        setCurrentView('supervisor-bloques');
       }
 
       if (superAdminViews.includes(currentView) && !isSuperAdmin()) {
-        logger.warn(`Acceso no autorizado intentado a ${currentView} por ${user.usuario_login}`);
-        setCurrentView('supervisor-diaria');
+        setCurrentView('supervisor-bloques');
       }
     }
   }, [currentView, user, isAdmin, isSuperAdmin, setCurrentView]);
@@ -68,24 +74,43 @@ const App: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      logger.info(`Intento de login para: ${username}`);
       const userData = await authService.login(username, password);
       setUser(userData);
-      logger.info(`Login exitoso: ${userData.usuario_login}`);
+      if (userData.rol === 'supervisor') setCurrentView('supervisor-bloques');
     } catch (err: any) {
       setError(err.message || 'Error de autenticación');
-      logger.error("Error en login", err);
     } finally {
       setLoading(false);
     }
   };
 
+  const renderContent = () => {
+    switch (currentView) {
+      case 'supervisor-bloques': return <SupervisorBloques />;
+      case 'supervisor-diaria': return <SupervisorDiario />;
+      case 'supervisor-semanal': return <SupervisorSemanal />;
+      case 'supervisor-historial': return <SupervisorHistorico />;
+      case 'supervisor-detalle': return <SupervisorSemanaDetalle />;
+      case 'admin-dashboard': return isAdmin() ? <AdminDashboard /> : null;
+      case 'importar-excel': return isSuperAdmin() ? <ImportadorExcel /> : null;
+      case 'gestion-sedes': return isAdmin() ? <GestionSedes /> : null;
+      case 'gestion-bloques': return isAdmin() ? <GestionBloques /> : null;
+      case 'gestion-productos': return isAdmin() ? <GestionProductos /> : null;
+      case 'gestion-colores': return isAdmin() ? <GestionColores /> : null;
+      case 'gestion-variedades': return isAdmin() ? <GestionVariedades /> : null;
+      case 'gestion-areas': return isAdmin() ? <GestionAreas /> : null;
+      case 'gestion-areas-bloques': return isAdmin() ? <GestionAreasBloques /> : null;
+      case 'super-usuarios': return isSuperAdmin() ? <GestionUsuarios /> : null;
+      default: return <SupervisorBloques />;
+    }
+  };
+
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-indigo-950">
+      <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="text-center">
-          <Loader2 className="animate-spin text-white opacity-20 mx-auto mb-4" size={48} />
-          <p className="text-indigo-300 text-xs font-bold uppercase tracking-widest text-balance">Verificando Credenciales...</p>
+          <Loader2 className="animate-spin text-purple-500/40 mx-auto mb-6" size={64} />
+          <p className="text-purple-400 text-[10px] font-black uppercase tracking-[0.4em] animate-pulse">Iniciando...</p>
         </div>
       </div>
     );
@@ -93,77 +118,36 @@ const App: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-indigo-950 p-6 relative overflow-hidden font-sans">
-        <div className="bg-white p-10 md:p-14 rounded-[3.5rem] shadow-2xl w-full max-w-md text-center relative z-10 border border-white/20">
-          <div className="w-20 h-20 bg-indigo-600 rounded-3xl mx-auto mb-8 flex items-center justify-center shadow-2xl shadow-indigo-500/40 transform rotate-3">
-            <TrendingUp className="text-white" size={40} />
-          </div>
-          <h2 className="text-4xl font-black text-indigo-950 mb-2 italic tracking-tighter">TNPM PROY</h2>
-          <p className="text-slate-400 font-black text-[10px] uppercase tracking-[0.3em] mb-12 italic">Acceso Seguro</p>
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="relative">
-              <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input
-                type="text"
-                placeholder="Usuario"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-slate-50 border-none py-4 pl-12 pr-4 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-indigo-950 outline-none"
-                required
-              />
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6 font-sans">
+        <NotificationToast />
+        <div className="bg-white p-12 rounded-[3.5rem] shadow-2xl w-full max-w-md border-2 border-slate-100 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-50 rounded-bl-full -z-0"></div>
+          <div className="relative z-10">
+            <div className="w-16 h-16 bg-purple-600 rounded-2xl mb-8 flex items-center justify-center shadow-xl shadow-purple-200 rotate-3">
+              <TrendingUp className="text-white" size={32} />
             </div>
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input
-                type="password"
-                placeholder="Contraseña"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-50 border-none py-4 pl-12 pr-4 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-indigo-950 outline-none"
-                required
-              />
-            </div>
-
-            {error && (
-              <div className="flex items-center gap-2 text-red-500 bg-red-50 p-3 rounded-xl text-xs font-bold border border-red-100">
-                <AlertCircle size={14} />
-                <span>Credenciales Incorrectas</span>
+            <h2 className="text-5xl font-black text-slate-950 mb-2 tracking-tighter italic uppercase">TNPM</h2>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-500 uppercase ml-4">Usuario</label>
+                <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} className="w-full bg-slate-50 border-2 border-slate-100 py-4 pl-6 rounded-2xl focus:border-purple-300 outline-none font-black" required />
               </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-sm hover:bg-indigo-700 transition-all shadow-lg active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {loading ? <Loader2 className="animate-spin" size={20} /> : 'ENTRAR AL SISTEMA'}
-            </button>
-          </form>
-          <p className="mt-8 text-[10px] text-slate-300 font-medium uppercase tracking-widest font-black">TNPM v1.0 PROD</p>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-500 uppercase ml-4">Clave</label>
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-slate-50 border-2 border-slate-100 py-4 pl-6 rounded-2xl focus:border-purple-300 outline-none font-black" required />
+              </div>
+              {error && <div className="text-red-700 bg-red-50 p-4 rounded-2xl text-[11px] font-bold border-2 border-red-100">{error}</div>}
+              <button type="submit" disabled={loading} className="w-full bg-purple-600 text-white py-5 rounded-2xl font-black text-xs uppercase hover:bg-purple-700 transition-all flex items-center justify-center gap-3">
+                {loading ? <Loader2 className="animate-spin" size={20} /> : <>Entrar <ArrowRight size={18} /></>}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     );
   }
 
-  const renderContent = () => {
-    switch (currentView) {
-      case 'supervisor-diaria': return <SupervisorDiario />;
-      case 'supervisor-semanal': return <SupervisorSemanal />;
-      case 'supervisor-historial': return <SupervisorHistorico />;
-      case 'admin-dashboard': return isAdmin() ? <AdminDashboard /> : null;
-      case 'gestion-sedes': return isAdmin() ? <GestionSedes /> : null;
-      case 'gestion-bloques': return isAdmin() ? <GestionBloques /> : null;
-      case 'gestion-productos': return isAdmin() ? <GestionProductos /> : null;
-      case 'gestion-colores': return isAdmin() ? <GestionColores /> : null;
-      case 'gestion-variedades': return isAdmin() ? <GestionVariedades /> : null;
-      case 'gestion-areas': return isAdmin() ? <GestionAreas /> : null;
-      case 'super-usuarios': return isSuperAdmin() ? <GestionUsuarios /> : null;
-      default: return <SupervisorDiario />;
-    }
-  };
-
-  return <Layout>{renderContent()}</Layout>;
+  return <Layout><NotificationToast />{renderContent()}</Layout>;
 };
 
 export default App;
