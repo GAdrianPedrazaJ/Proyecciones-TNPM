@@ -20,7 +20,7 @@ export const adminService = {
     };
   },
 
-  getAgregadoPER0: async (filtros?: { id_bloque?: string; id_color?: string }) => {
+  getAgregadoPER0: async (filtros?: { id_sede?: string; id_bloque?: string; id_color?: string; id_producto?: string }) => {
     const { start, end } = getWeekRange(new Date());
 
     let query = supabase
@@ -30,12 +30,13 @@ export const adminService = {
         id_variedad,
         cantidad,
         fecha_proyeccion,
-        bloque:bloques(nombre),
-        variedad:variedades(
+        bloque:bloques!inner(nombre, id_sede),
+        variedad:variedades!inner(
           nombre,
           id_color,
-          color:colores(
+          color:colores!inner(
             nombre,
+            id_producto,
             producto:productos(nombre)
           )
         )
@@ -43,17 +44,24 @@ export const adminService = {
       .gte('fecha_proyeccion', start)
       .lte('fecha_proyeccion', end);
 
+    if (filtros?.id_sede) query = query.eq('bloques.id_sede', filtros.id_sede);
     if (filtros?.id_bloque) query = query.eq('id_bloque', filtros.id_bloque);
+    if (filtros?.id_color) query = query.eq('variedad.id_color', filtros.id_color);
+    if (filtros?.id_producto) query = query.eq('variedad.color.id_producto', filtros.id_producto);
 
     const { data: proyecciones, error: pError } = await query;
     if (pError) throw pError;
 
     let realQuery = supabase
       .from('datos_reales_diarios')
-      .select('*')
+      .select(`
+        *,
+        bloque:bloques!inner(id_sede)
+      `)
       .gte('fecha', start)
       .lte('fecha', end);
 
+    if (filtros?.id_sede) realQuery = realQuery.eq('bloque.id_sede', filtros.id_sede);
     if (filtros?.id_bloque) realQuery = realQuery.eq('id_bloque', filtros.id_bloque);
 
     const { data: reales, error: rError } = await realQuery;
@@ -62,7 +70,7 @@ export const adminService = {
     return { proyecciones, reales };
   },
 
-  getDatosGraficoPER0: async (filtros?: { id_bloque?: string; id_color?: string }) => {
+  getDatosGraficoPER0: async (filtros?: any) => {
     const { start } = getWeekRange(new Date());
     const { proyecciones, reales } = await adminService.getAgregadoPER0(filtros);
 
@@ -82,5 +90,39 @@ export const adminService = {
 
       return { name: dia, proyectado: proyDia, real: realDia };
     });
+  },
+
+  getAcumulados: async (filtros: { id_sede?: string; id_producto?: string; id_bloque?: string; id_color?: string }) => {
+    const { start, end } = getWeekRange(new Date());
+
+    let query = supabase
+      .from('vw_proyecciones_diarias_ultima_version')
+      .select(`
+        cantidad,
+        id_variedad,
+        bloques!inner (id_sede, id_bloque),
+        variedades!inner (
+          id_variedad,
+          nombre,
+          id_color,
+          colores!inner (
+            id_color,
+            nombre,
+            id_producto
+          )
+        )
+      `)
+      .gte('fecha_proyeccion', start)
+      .lte('fecha_proyeccion', end);
+
+    if (filtros.id_sede) query = query.eq('bloques.id_sede', filtros.id_sede);
+    if (filtros.id_bloque) query = query.eq('id_bloque', filtros.id_bloque);
+    if (filtros.id_producto) query = query.eq('variedades.colores.id_producto', filtros.id_producto);
+    if (filtros.id_color) query = query.eq('variedades.id_color', filtros.id_color);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    return data;
   }
 };

@@ -15,18 +15,60 @@
   -moz-osx-font-smoothing: grayscale;
 
   body {
-    /* Fondo claro, pero texto base mucho más oscuro y sólido */
     @apply bg-slate-50 text-slate-900 m-0 p-0 min-h-screen w-full overflow-x-hidden;
+  }
+
+  /* --- CUSTOM SCROLLBAR ESTILO TNPM --- */
+
+  /* Tamaño de la barra */
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  /* Fondo de la barra (Track) */
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* El "tirador" de la barra (Thumb) */
+  ::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1; /* slate-300 */
+    border-radius: 20px;
+    border: 1px solid transparent;
+    background-clip: content-box;
+  }
+
+  /* Hover en el tirador */
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #8b5cf6; /* Lila de la marca */
+  }
+
+  /* Estilo específico para el SIDEBAR (Oscuro) */
+  aside ::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  aside ::-webkit-scrollbar-thumb:hover {
+    background-color: #a78bfa; /* Púrpura más claro */
+  }
+
+  /* Firefox Support */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+  }
+
+  aside {
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
   }
 }
 
 @layer components {
-  /* Títulos de alto impacto */
   .heading-strong {
     @apply font-black text-slate-950 tracking-tighter uppercase italic;
   }
 
-  /* Texto de cuerpo con mejor contraste */
   .text-body {
     @apply text-slate-700 font-medium;
   }

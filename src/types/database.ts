@@ -2,15 +2,15 @@ export type Rol = 'supervisor' | 'administrador' | 'superadministrador';
 
 export interface Usuario {
   id_usuario: string;
-  id?: string;            // Opcional para compatibilidad
+  id?: string;
   usuario_login: string;
   email: string;
   nombre_completo: string;
   rol: Rol;
   activo: boolean;
   contrasena?: string;
-  fecha_creacion?: string;
-  fecha_actualizacion?: string;
+  permisos_sedes?: string[];
+  secciones_permitidas?: string[];
   admin_info?: {
     sedes: {
       id: string;
@@ -68,6 +68,7 @@ export interface Variedad {
 export interface Bloque {
   id_bloque: string;
   id_sede: string;
+  id_area?: string;
   nombre: string;
   activo: boolean;
 }
@@ -82,7 +83,7 @@ export interface Area {
 
 export interface ProyeccionDiaria {
   id_proyeccion: string;
-  id?: string;             // Opcional para compatibilidad
+  id?: string;
   id_supervisor: string;
   id_bloque: string;
   id_variedad: string;
@@ -98,7 +99,7 @@ export type Proyeccion = ProyeccionDiaria;
 
 export interface ProyeccionSemanal {
   id_proyeccion: string;
-  id?: string;             // Opcional para compatibilidad
+  id?: string;
   id_supervisor: string;
   id_bloque: string;
   id_variedad: string;
@@ -107,15 +108,6 @@ export interface ProyeccionSemanal {
   cantidad: number;
   version: number;
   fecha_creacion?: string;
-}
-
-export interface DatoRealDiario {
-  id_dato: string;
-  id_bloque: string;
-  id_variedad: string;
-  fecha: string;
-  cantidad: number;
-  ingresado_por?: string;
 }
 
 export interface Registro {
@@ -129,4 +121,16 @@ export interface Registro {
   operador_id: string;
   is_offline?: boolean;
   created_at?: string;
+}
+
+export interface AuditoriaLog {
+  id?: string;
+  id_usuario: string;
+  accion: 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'IMPORT';
+  tabla: string;
+  registro_id: string;
+  valor_anterior?: any;
+  valor_nuevo?: any;
+  fecha_hora: string;
+  ip_address?: string;
 }

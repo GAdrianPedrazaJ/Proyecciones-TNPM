@@ -4,10 +4,12 @@ import { useProyectionStore } from '../store/proyectionStore';
 import { useNavStore } from '../store/navStore';
 import { useNotificationStore } from '../store/notificationStore';
 import { proyeccionesService } from '../services/proyecciones';
+import { auditService } from '../services/auditService';
 import { getWeekNumber, calcularEstadoSemanas, EstadoSemanal } from '../utils/semanaUtils';
 import { logger } from '../utils/logger';
 import { ProyeccionSemanal, Bloque } from '../types/database';
-import { CalendarDays, Save, Loader2, Info, ArrowLeft, Lock, Unlock, AlertCircle, CloudLightning, CheckCircle2, LayoutGrid } from 'lucide-react';
+import { CalendarDays, Save, Loader2, Info, ArrowLeft, Lock, AlertCircle, CloudLightning, CheckCircle2, LayoutGrid } from 'lucide-react';
+import { TableSkeleton } from './UI/Skeleton';
 
 export const SupervisorSemanal: React.FC = () => {
   const { user } = useAuthStore();
@@ -47,7 +49,7 @@ export const SupervisorSemanal: React.FC = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (Object.keys(valores).length > 0) guardarTodo(true);
-    }, 2000);
+    }, 5000);
     return () => clearTimeout(timer);
   }, [valores]);
 
@@ -87,13 +89,12 @@ export const SupervisorSemanal: React.FC = () => {
 
   const esCeldaEditable = (idx: number, semanaNum: number, idVariedad: string) => {
     if (esPrimeraProyeccion) return true;
-    if (idx === 0) return true; // PER 0: Siempre abierto
+    if (idx === 0) return true;
     if (idx === 4) {
-      // PER 4: Solo abierto si no tiene datos (carga única)
       const yaTieneDato = proyecciones.some(p => p.semana_num === semanaNum && p.id_variedad === idVariedad && p.cantidad > 0);
       return !yaTieneDato;
     }
-    return false; // PER 1, 2, 3: Bloqueados tras inicio
+    return false;
   };
 
   const handleKeyDown = (e: React.KeyboardEvent, vIdx: number, sIdx: number) => {
@@ -112,7 +113,7 @@ export const SupervisorSemanal: React.FC = () => {
       const original = proyecciones.find(p => p.semana_num === semanaNum && p.id_variedad === idVariedad);
 
       if (idx !== -1 && esCeldaEditable(idx, semanaNum, idVariedad) && (!original || original.cantidad !== cantidad)) {
-        return { semanaNum, idVariedad, cantidad, ano: estadoSemanas[idx].ano };
+        return { semanaNum, idVariedad, cantidad, ano: estadoSemanas[idx].ano, anterior: original?.cantidad };
       }
       return null;
     }).filter(c => c !== null);
@@ -121,18 +122,30 @@ export const SupervisorSemanal: React.FC = () => {
     if (!silencioso) setGuardando(true);
 
     try {
-      await Promise.all(cambios.map(c => proyeccionesService.guardarProyeccionSemanal({
-        id_supervisor: user!.id_usuario,
-        id_bloque: idBloqueSeleccionado,
-        id_variedad: c!.idVariedad,
-        semana_num: c!.semanaNum,
-        ano: c!.ano,
-        cantidad: c!.cantidad
-      })));
+      await Promise.all(cambios.map(async (c) => {
+        const result = await proyeccionesService.guardarProyeccionSemanal({
+          id_supervisor: user!.id_usuario,
+          id_bloque: idBloqueSeleccionado,
+          id_variedad: c!.idVariedad,
+          semana_num: c!.semanaNum,
+          ano: c!.ano,
+          cantidad: c!.cantidad
+        });
+
+        // AUDITORIA
+        await auditService.log({
+          id_usuario: user!.id_usuario,
+          accion: 'UPDATE',
+          tabla: 'proyecciones_semanales',
+          registro_id: result.id_proyeccion || 'N/A',
+          valor_anterior: { cantidad: c!.anterior },
+          valor_nuevo: { cantidad: c!.cantidad }
+        });
+      }));
+
       setUltimoGuardado(new Date().toLocaleTimeString());
       if (!silencioso) addNotification('Sincronización PER exitosa', 'success');
 
-      // Refrescar proyecciones locales para aplicar bloqueos de PER 4
       const hoy = new Date();
       const semanasNums = estadoSemanas.map(s => s.semana_num);
       const data = await proyeccionesService.getProyeccionesSemanales(user!.id_usuario, hoy.getFullYear(), semanasNums);
@@ -141,8 +154,6 @@ export const SupervisorSemanal: React.FC = () => {
     } catch (e) { logger.error('Error guardando PER', e); }
     finally { if (!silencioso) setGuardando(false); }
   };
-
-  if (loading && variedades.length === 0) return <div className="h-[60vh] flex flex-col items-center justify-center gap-4"><Loader2 className="animate-spin text-purple-600" size={48}/><p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Sincronizando PER...</p></div>;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-500">
@@ -165,7 +176,7 @@ export const SupervisorSemanal: React.FC = () => {
               {bloques.map(b => <option key={b.id_bloque} value={b.id_bloque}>Bloque {b.nombre}</option>)}
             </select>
           </div>
-          <button onClick={() => guardarTodo()} disabled={guardando} className="bg-purple-600 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase hover:bg-purple-700 flex items-center gap-2 shadow-lg transition-all"><Save size={14}/> Sincronizar</button>
+          <button onClick={() => guardarTodo()} disabled={guardando} className="bg-purple-600 text-white px-6 py-3 rounded-xl font-black text-[10px] uppercase hover:bg-purple-700 flex items-center gap-2 shadow-lg transition-all">{guardando ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Sincronizar</button>
         </div>
       </header>
 
@@ -178,47 +189,51 @@ export const SupervisorSemanal: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="px-8 py-5 text-[9px] font-black text-slate-600 uppercase tracking-widest">Variedad / Periodo</th>
-                {estadoSemanas.map((estado, idx) => (
-                  <th key={estado.semana_num} className="px-4 py-5 text-center border-l border-slate-100 min-w-[110px]">
-                    <span className={`block text-[8px] font-black uppercase mb-1 ${idx === 0 || idx === 4 ? 'text-purple-600' : 'text-slate-400'}`}>
-                      {idx === 0 ? 'PER 0 (Actual)' : `PER ${idx}`}
-                    </span>
-                    <span className="text-[10px] font-bold text-slate-800">W{estado.semana_num}</span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {variedades.map((v, vIdx) => (
-                <tr key={v.id_variedad} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-8 py-4">
-                    <span className="text-xs font-black text-slate-900 uppercase italic leading-none">{v.nombre}</span>
-                    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter mt-1">{v.color?.nombre}</p>
-                  </td>
-                  {estadoSemanas.map((estado, sIdx) => {
-                    const key = `${estado.semana_num}|${v.id_variedad}`;
-                    const editable = esCeldaEditable(sIdx, estado.semana_num, v.id_variedad);
-                    const val = valores[key] || 0;
-                    return (
-                      <td key={estado.semana_num} className="px-2 py-4 text-center border-l border-slate-100">
-                        <div className="relative inline-block">
-                          <input id={`input-${estado.semana_num}-${v.id_variedad}`} type="number" value={valores[key] ?? ''} onChange={(e) => setValores(prev => ({...prev, [key]: parseInt(e.target.value) || 0}))} onKeyDown={(e) => handleKeyDown(e, vIdx, sIdx)} disabled={!editable} placeholder="0" className={`w-20 p-3 text-center font-black rounded-xl outline-none transition-all border-2 ${editable ? (val > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-100 focus:border-emerald-300' : 'bg-purple-50 text-purple-700 border-purple-100 focus:border-purple-300') : 'bg-slate-100 text-slate-400 border-slate-100 cursor-not-allowed'} text-xs`} />
-                          {val > 0 && !editable && <CheckCircle2 size={12} className="absolute -top-1 -right-1 text-emerald-500 bg-white rounded-full shadow-sm" />}
-                          {!editable && val === 0 && <Lock size={10} className="absolute -top-1 -right-1 text-slate-300" />}
-                        </div>
-                      </td>
-                    );
-                  })}
+        {loading && variedades.length === 0 ? (
+          <div className="p-10"><TableSkeleton /></div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="px-8 py-5 text-[9px] font-black text-slate-600 uppercase tracking-widest">Variedad / Periodo</th>
+                  {estadoSemanas.map((estado, idx) => (
+                    <th key={estado.semana_num} className="px-4 py-5 text-center border-l border-slate-100 min-w-[110px]">
+                      <span className={`block text-[8px] font-black uppercase mb-1 ${idx === 0 || idx === 4 ? 'text-purple-600' : 'text-slate-400'}`}>
+                        {idx === 0 ? 'PER 0 (Actual)' : `PER ${idx}`}
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-800">W{estado.semana_num}</span>
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {variedades.map((v, vIdx) => (
+                  <tr key={v.id_variedad} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-8 py-4">
+                      <span className="text-xs font-black text-slate-900 uppercase italic leading-none">{v.nombre}</span>
+                      <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter mt-1">{v.color?.nombre}</p>
+                    </td>
+                    {estadoSemanas.map((estado, sIdx) => {
+                      const key = `${estado.semana_num}|${v.id_variedad}`;
+                      const editable = esCeldaEditable(sIdx, estado.semana_num, v.id_variedad);
+                      const val = valores[key] || 0;
+                      return (
+                        <td key={estado.semana_num} className="px-2 py-4 text-center border-l border-slate-100">
+                          <div className="relative inline-block">
+                            <input id={`input-${estado.semana_num}-${v.id_variedad}`} type="number" value={valores[key] ?? ''} onChange={(e) => setValores(prev => ({...prev, [key]: parseInt(e.target.value) || 0}))} onKeyDown={(e) => handleKeyDown(e, vIdx, sIdx)} disabled={!editable} placeholder="0" className={`w-20 p-3 text-center font-black rounded-xl outline-none transition-all border-2 ${editable ? (val > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-100 focus:border-emerald-300' : 'bg-purple-50 text-purple-700 border-purple-100 focus:border-purple-300') : 'bg-slate-100 text-slate-400 border-slate-100 cursor-not-allowed'} text-xs`} />
+                            {val > 0 && !editable && <CheckCircle2 size={12} className="absolute -top-1 -right-1 text-emerald-500 bg-white rounded-full shadow-sm" />}
+                            {!editable && val === 0 && <Lock size={10} className="absolute -top-1 -right-1 text-slate-300" />}
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { logger } from '../utils/logger';
 
 export const masterService = {
   // Obtener registros activos con ordenamiento inteligente por tabla
@@ -22,7 +23,7 @@ export const masterService = {
 
     const { data, error } = await query;
     if (error) {
-      console.error(`Error en getItems para ${tabla}:`, error.message);
+      logger.error(`Error en getItems para ${tabla}`, error);
       throw error;
     }
     return data;
@@ -34,7 +35,10 @@ export const masterService = {
       .update({ activo: false })
       .eq(idCampo, idValor);
 
-    if (error) throw error;
+    if (error) {
+      logger.error(`Error eliminando en ${tabla}`, error);
+      throw error;
+    }
     return true;
   },
 
@@ -53,8 +57,8 @@ export const masterService = {
       .single();
 
     if (error) {
-      console.error(`Error guardando en ${tabla}:`, error.message);
-      throw new Error(error.message);
+      logger.error(`Error guardando en ${tabla}`, error);
+      throw error;
     }
     return data;
   }

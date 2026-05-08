@@ -4,6 +4,7 @@ import { useProyectionStore } from '../store/proyectionStore';
 import { useNavStore } from '../store/navStore';
 import { proyeccionesService } from '../services/proyecciones';
 import { LayoutGrid, Box, Loader2, Tags, Calendar, CalendarDays, MapPin } from 'lucide-react';
+import { CardSkeleton } from './UI/Skeleton';
 
 export const SupervisorBloques: React.FC = () => {
   const { user } = useAuthStore();
@@ -26,10 +27,11 @@ export const SupervisorBloques: React.FC = () => {
       setBloques(bloquesData);
 
       const varsMap: Record<string, any[]> = {};
-      for (const b of bloquesData) {
+      // Paralelizamos para mayor velocidad
+      await Promise.all(bloquesData.map(async (b) => {
         const vars = await proyeccionesService.getVariedadesPorBloque(b.id_bloque);
         varsMap[b.id_bloque] = vars;
-      }
+      }));
       setVariedadesPorBloque(varsMap);
     } catch (error) {
       console.error("Error cargando bloques:", error);
@@ -42,13 +44,6 @@ export const SupervisorBloques: React.FC = () => {
     setIdBloqueSeleccionado(idBloque);
     setCurrentView(vista);
   };
-
-  if (loading) return (
-    <div className="flex flex-col justify-center items-center h-[60vh] gap-6">
-      <Loader2 className="animate-spin text-purple-600" size={48} />
-      <p className="text-slate-600 font-black uppercase tracking-[0.4em] text-[10px]">Cargando Áreas...</p>
-    </div>
-  );
 
   return (
     <div className="space-y-10 max-w-7xl mx-auto pb-12 animate-in fade-in duration-500">
@@ -65,7 +60,11 @@ export const SupervisorBloques: React.FC = () => {
         </div>
       </header>
 
-      {bloques.length === 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {[...Array(6)].map((_, i) => <CardSkeleton key={i} />)}
+        </div>
+      ) : bloques.length === 0 ? (
         <div className="bg-white p-24 rounded-[3rem] shadow-sm border border-slate-200 text-center space-y-6">
           <Box size={64} className="mx-auto text-slate-300" />
           <p className="text-slate-600 font-black uppercase tracking-widest">Sin asignaciones registradas.</p>

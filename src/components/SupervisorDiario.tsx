@@ -1,13 +1,15 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useProyectionStore } from '../store/proyectionStore';
 import { useNavStore } from '../store/navStore';
 import { useNotificationStore } from '../store/notificationStore';
 import { proyeccionesService } from '../services/proyecciones';
+import { auditService } from '../services/auditService';
 import { getWeekRange } from '../utils/semanaUtils';
 import { logger } from '../utils/logger';
 import { Calendar, ChevronLeft, ChevronRight, Save, Loader2, Info, ArrowLeft, Clock, CheckCircle2, CloudLightning, LayoutGrid } from 'lucide-react';
 import { ProyeccionDiaria, Bloque } from '../types/database';
+import { TableSkeleton } from './UI/Skeleton';
 
 export const SupervisorDiario: React.FC = () => {
   const { user } = useAuthStore();
@@ -23,7 +25,6 @@ export const SupervisorDiario: React.FC = () => {
   const [valores, setValores] = useState<Record<string, number>>({});
   const [guardando, setGuardando] = useState(false);
   const [nombreBloque, setNombreBloque] = useState('');
-  const [esPrimeraProyeccion, setEsPrimeraProyeccion] = useState(false);
   const [ultimoGuardado, setUltimoGuardado] = useState<string | null>(null);
 
   const diasSemana = Array.from({ length: 7 }, (_, i) => {
@@ -45,11 +46,11 @@ export const SupervisorDiario: React.FC = () => {
     }
   }, [idBloqueSeleccionado, fechaBase]);
 
-  // Autoguardado
+  // Autoguardado inteligente
   useEffect(() => {
     const timer = setTimeout(() => {
       if (Object.keys(valores).length > 0) guardarTodo(true);
-    }, 2000);
+    }, 5000);
     return () => clearTimeout(timer);
   }, [valores]);
 
@@ -79,7 +80,6 @@ export const SupervisorDiario: React.FC = () => {
       setVariedades(vars);
       const dataBloque = data.filter((p: any) => p.id_bloque === idBloqueSeleccionado);
       setProyecciones(dataBloque);
-      setEsPrimeraProyeccion(dataBloque.length === 0);
 
       const nuevosValores: Record<string, number> = {};
       dataBloque.forEach((p: any) => {
@@ -108,20 +108,33 @@ export const SupervisorDiario: React.FC = () => {
     const cambios = Object.entries(valores).map(([key, cantidad]) => {
       const [fecha, idVariedad] = key.split('|');
       const original = proyecciones.find(p => p.fecha_proyeccion === fecha && p.id_variedad === idVariedad);
-      return (!original || original.cantidad !== cantidad) ? { fecha, idVariedad, cantidad } : null;
+      return (!original || original.cantidad !== cantidad) ? { fecha, idVariedad, cantidad, anterior: original?.cantidad } : null;
     }).filter(c => c !== null);
 
     if (cambios.length === 0 || guardando) return;
     if (!silencioso) setGuardando(true);
 
     try {
-      await Promise.all(cambios.map(c => proyeccionesService.guardarProyeccionDiaria({
-        id_supervisor: user!.id_usuario,
-        id_bloque: idBloqueSeleccionado,
-        id_variedad: c!.idVariedad,
-        fecha_proyeccion: c!.fecha,
-        cantidad: c!.cantidad
-      })));
+      await Promise.all(cambios.map(async (c) => {
+        const result = await proyeccionesService.guardarProyeccionDiaria({
+          id_supervisor: user!.id_usuario,
+          id_bloque: idBloqueSeleccionado,
+          id_variedad: c!.idVariedad,
+          fecha_proyeccion: c!.fecha,
+          cantidad: c!.cantidad
+        });
+
+        // REGISTRO DE AUDITORÍA
+        await auditService.log({
+          id_usuario: user!.id_usuario,
+          accion: 'UPDATE',
+          tabla: 'proyecciones_diarias',
+          registro_id: result.id_proyeccion || 'N/A',
+          valor_anterior: { cantidad: c!.anterior },
+          valor_nuevo: { cantidad: c!.cantidad }
+        });
+      }));
+
       setUltimoGuardado(new Date().toLocaleTimeString());
       if (!silencioso) addNotification('Sincronización exitosa', 'success');
     } catch (e) {
@@ -170,41 +183,45 @@ export const SupervisorDiario: React.FC = () => {
         </div>
       ) : (
         <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="px-8 py-5 text-[9px] font-black text-slate-600 uppercase tracking-widest">Variedad</th>
-                  {diasSemana.map((fecha, idx) => (
-                    <th key={fecha} className="px-4 py-5 text-center border-l border-slate-100 min-w-[100px]">
-                      <span className="block text-[8px] font-black text-purple-600 uppercase mb-1">{['LUN','MAR','MIE','JUE','VIE','SAB','DOM'][idx]}</span>
-                      <span className="text-[10px] font-bold text-slate-800">{fecha.split('-').slice(1).reverse().join('/')}</span>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {variedades.map((v, vIdx) => (
-                  <tr key={v.id_variedad} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-8 py-4">
-                      <span className="text-xs font-black text-slate-900 uppercase italic leading-none">{v.nombre}</span>
-                      <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter mt-1">{v.color?.nombre}</p>
-                    </td>
-                    {diasSemana.map((fecha, fIdx) => {
-                      const key = `${fecha}|${v.id_variedad}`;
-                      const editable = esEditable(fecha);
-                      const val = valores[key] || 0;
-                      return (
-                        <td key={fecha} className="px-2 py-4 text-center border-l border-slate-100">
-                          <input id={`input-${fecha}-${v.id_variedad}`} type="number" value={valores[key] ?? ''} onChange={(e) => setValores(prev => ({...prev, [key]: parseInt(e.target.value) || 0}))} onKeyDown={(e) => handleKeyDown(e, vIdx, fIdx)} disabled={!editable} placeholder="0" className={`w-20 p-3 text-center font-black rounded-xl outline-none transition-all border-2 ${editable ? (val > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-100 focus:border-emerald-300' : 'bg-purple-50 text-purple-700 border-purple-100 focus:border-purple-300') : 'bg-slate-100 text-slate-400 border-slate-100 cursor-not-allowed'} text-xs`} />
-                        </td>
-                      );
-                    })}
+          {loading ? (
+            <div className="p-10"><TableSkeleton /></div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="px-8 py-5 text-[9px] font-black text-slate-600 uppercase tracking-widest">Variedad</th>
+                    {diasSemana.map((fecha, idx) => (
+                      <th key={fecha} className="px-4 py-5 text-center border-l border-slate-100 min-w-[100px]">
+                        <span className="block text-[8px] font-black text-purple-600 uppercase mb-1">{['LUN','MAR','MIE','JUE','VIE','SAB','DOM'][idx]}</span>
+                        <span className="text-[10px] font-bold text-slate-800">{fecha.split('-').slice(1).reverse().join('/')}</span>
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {variedades.map((v, vIdx) => (
+                    <tr key={v.id_variedad} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-8 py-4">
+                        <span className="text-xs font-black text-slate-900 uppercase italic leading-none">{v.nombre}</span>
+                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter mt-1">{v.color?.nombre}</p>
+                      </td>
+                      {diasSemana.map((fecha, fIdx) => {
+                        const key = `${fecha}|${v.id_variedad}`;
+                        const editable = esEditable(fecha);
+                        const val = valores[key] || 0;
+                        return (
+                          <td key={fecha} className="px-2 py-4 text-center border-l border-slate-100">
+                            <input id={`input-${fecha}-${v.id_variedad}`} type="number" value={valores[key] ?? ''} onChange={(e) => setValores(prev => ({...prev, [key]: parseInt(e.target.value) || 0}))} onKeyDown={(e) => handleKeyDown(e, vIdx, fIdx)} disabled={!editable} placeholder="0" className={`w-20 p-3 text-center font-black rounded-xl outline-none transition-all border-2 ${editable ? (val > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-100 focus:border-emerald-300' : 'bg-purple-50 text-purple-700 border-purple-100 focus:border-purple-300') : 'bg-slate-100 text-slate-400 border-slate-100 cursor-not-allowed'} text-xs`} />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>
